@@ -11,22 +11,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 """
-                                                     DATABASE
+                                                     DATABASE TRAIN
 """
 
 X = torch.arange(0, 2 * 3.14, 0.01227).view(-1, 1)
 X_in = torch.sin(X)
-Y_no_noise = 0.4 * torch.tanh(X_in / 0.4)               #SE SINTETIZAN LOS DATOS DE ENTRENAMIENTO
+Y_no_noise = 0.4 * torch.tanh(X_in / 0.4)               #SE SINTETIZAN LOS DATOS DE ENTRENAMIENTO A PARTIR DE PASAR TENSORES EN FORMA DE SINUSOIDES POR EL  CLIPPER TANH
 noise = torch.randn(X.size())                           #SE CREA UN TENSOR DE NUMEROS ALEATORIOS
 Y = Y_no_noise + 0.002*noise                            #SE APLICA EL TENSOR ALEATORIO A LOS DATOS SINTETIZADOS PARA GENERAR VARIANZA
 
+"""
+                                                     DATABASE TEST
+"""
+
 X_test = torch.arange(0, 2 * 3.14,
-                      0.01227).view(-1, 1)              #SE CREAN LOS TENSORES A UTILIZAR
+                      0.01227).view(-1, 1)              #SE CREAN LOS TENSORES
 X_in_test = torch.sin(X_test)
 Y_test= (0.4*torch.tanh(X_in_test/0.4)+ 0.002*noise)
 
 print("DATOS SINTETIZADOS")
-plt.plot(X_in.numpy(), Y.numpy(), "r+", label = "Y")    #SE MUESTRAN LOS DATOS SINTETIZADOS 
+plt.plot(X_in.numpy(), Y.numpy(), "r+", label = "Y")    #SE MUESTRAN LOS DATOS SINTETIZADOS PARA EL ENTRENAMIENTO
 plt.xlabel("x")
 plt.ylabel("y")
 plt.legend("Modelo Deep Learning Regresion No lineal")
@@ -55,7 +59,7 @@ class NonLinearModel(nn.Module):
         
         return yhat                                     #SE DEVUELVE EL MODELO PROCESADO
 
-model =  NonLinearModel(1, 100, 1)                      #SE HACE USO DE LA CLASE CREADA
+model =  NonLinearModel(1, 100, 1)                      #SE INSTANCIA EL MODELO ENSAMBLADO
 
 
 # %%
@@ -82,17 +86,17 @@ def train(epochs):
         LOSS.append(loss_batch.item())                  #SE ALMACENAN LOS VALORES DE FUNCION DE PERDIDA PARA GRAFICAR
         
         for x, y in zip(X_in,Y):                        #SE ITERA SOBRE CADA LOTE PARA GRADIENTE DESCENDENTE
-            yhat= model(x)
-            loss = criterion(yhat,y)
+            yhat= model(x)                              #SE INSTANCIA EL MODELO
+            loss = criterion(yhat,y)                    #SE CALCULA LA FUNCION DE COSTO COMPARANDO LA SALIDA DEL MODELO CON LA PREDICCION
             optimizer.zero_grad()                       #SE REESTABLECEN LOS VALORES DE LOS TENSORES  CERO PARA EVITAR ACUMULACION
-            loss.backward()                             #SE ACTUALIZAN LOS PESOS Y CESGOS MEDIANTE LA GRADIENTE 
-            optimizer.step()                            #SE MINIMIZAN LAS PERDIDAS PARA APROXIMAR LOS PESOS Y CESGOS
-        Yhat = model(X_in)                              #NO RECUERDO POR QUE SE IMPLEMENTA EL MODELO NUEVAMENTE
-        if epoch % 10==0:
-            model.eval()
-            with torch.inference_mode():
-                test_pred = model(X_in_test)
-                test_loss = criterion(test_pred,
+            loss.backward()                             #SE CALCULA LA DERIVADA PARCIAL CON RESPECTO A LOS PARAMETROS DE LA FUNCION DE COSTO
+            optimizer.step()                            #SE ACTUALIZAN LAS PERDIDAS PARA APROXIMAR LOS PESOS Y CESGOS
+        Yhat = model(X_in)                              
+        if epoch % 10==0:                               #SE EVALUA EL MODELO CON UN DATASET DIFERENTE CADA 10 EPOCAS
+            model.eval()                                #SE CONFIGURA EL MODELO EN MODO EVALUACION
+            with torch.no_grad():                       #SE DESACTIVA CALCULO DE LA GRADIENTE PARA QUE EL MODELO NO APRENDA 
+                test_pred = model(X_in_test)            #SE INSTANCIA EL MODELO CON DATOS DE PRUEBA      
+                test_loss = criterion(test_pred,        #SE CALCULA LA FUNCION DE COSTO DEL MODELO DE PRUEBA
                                       Y_test)
                 epoch_count.append(epoch)
                 test_loss_values.append(test_loss.item())
@@ -146,17 +150,17 @@ print("ENTRENAMIENTO LISTO")
 
 modelo_cargado = NonLinearModel(1, 100, 1)           
 modelo_cargado.load_state_dict(torch.load('D:\\PLUGINCOMPLEMENT\\PYTORCH IA\\MODELO\\SoftClipper_god.pth'))
-modelo_cargado.eval()  # Cambia al modo de evaluación (inactiva la aleatoriedad de Dropout y BatchNorm)
+modelo_cargado.eval()                                  # Cambia al modo de evaluación (inactiva la aleatoriedad de Dropout y BatchNorm)
 
 t = torch.arange(0, 2 * 3.14, 0.01).view(-1, 1)
-X_nuevas = torch.sin(t)
+X_nuevas = torch.sin(t)                                #SE CREA LA SINUSOIDE COMO UN TENSOR
 
 
-with torch.inference_mode():                           # Pasar la señal sinusoidal de entrada a través del modelo
-    salida_modelo_cargado = modelo_cargado(X_nuevas)
+with torch.inference_mode():                           #SE CONFIGURA EL MODELO EN MODO INFERENCIA PARA REALIZAR PREDICCIONES
+    salida_modelo_cargado = modelo_cargado(X_nuevas)   #SE INGRESA AL MODELO LA SEÑAL SINUSOIDAL
 
 
-plt.figure(figsize=(10, 5))                            # Graficar las señales sinusoidales de entrada y salida del modelo
+plt.figure(figsize=(10, 5))                            #SE GRAFICAN LAS SALIDAS Y ENTRADAS DEL MODELO
 plt.plot(t.numpy(), X_nuevas.numpy(),
          label='SEÑAL DE ENTRADA')
 plt.plot(t.numpy(), salida_modelo_cargado.numpy(),
